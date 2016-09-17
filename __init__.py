@@ -11,6 +11,7 @@ import json
 import datetime
 import os
 import sys
+import uuid
 
 from settings import *
 
@@ -27,7 +28,9 @@ class EM_GUI:
         self.rows_selected = []
         
         self.fcd_menu = ''
-     
+        self.window_main = self.glade.get_object("window_main")
+        self.update_title(self.datafile.split("/")[-1])
+             
         self.lb_q1 = self.glade.get_object("lb_q1")
         self.lb_q2 = self.glade.get_object("lb_q2")
         self.lb_q3 = self.glade.get_object("lb_q3")
@@ -51,6 +54,7 @@ class EM_GUI:
             i[2] = (int) Urgency
             i[3] = (str) Name
             i[4] = (float) Completed Percentage
+            i[5] = (uuid.uuid) UUID
         '''
         def row_sort(row_1, row_2, data, notify_destroy):
             if self.mi_alpha_order.get_active() == False:
@@ -75,7 +79,7 @@ class EM_GUI:
                 #Skip intentions marked complete if toggle is active
                 continue
             row = Gtk.ListBoxRow()
-            row.label = i[3]
+            row.label = i[5]
             row.important = i[2]
             vbox = Gtk.VBox()
             hbox = Gtk.HBox()
@@ -84,7 +88,7 @@ class EM_GUI:
 
             cb = Gtk.CheckButton()
             cb.connect("toggled", self.row_cb_toggled)
-            cb.label = i[3]
+            cb.label = i[5]
             #hbox.add(cb)
             
             pb = Gtk.ProgressBar()
@@ -95,7 +99,7 @@ class EM_GUI:
             spb = Gtk.SpinButton()
             spb.set_adjustment(Gtk.Adjustment(i[4], 0, 100, 5, 0, 0))
             spb.set_numeric(True)
-            spb.label = i[3]
+            spb.label = i[5]
             spb.connect("value_changed", self.spb_vc)
             
             hb2.pack_start(spb,False,False,1)
@@ -121,54 +125,75 @@ class EM_GUI:
             if i[2] < 5 and i[1] == False:
                 self.lb_q4.add(row)
         self.glade.get_object("window_main").show_all()
+    
+    def update_title(self,title):
+        self.window_main.set_title("Eisenhower Matrix - " + title)    
         
     def menu_file_open(self, menuitem, data=None):
         self.fcd.show()
+        self.fcd_te.set_text('')
         self.fcd_menu = 'FO'
         response = self.fcd.run()
         print response
  
     def menu_file_new(self, menuitem, data=None):
         self.fcd.show()
+        self.fcd_te.set_text('')
         self.fcd_menu = 'FN'
         response = self.fcd.run()
         print response       
 
     def menu_file_save(self, menuitem, data=None):
-         self.write_to_file(items=self.intentions,filename=self.datafile)
+        self.write_to_file(items=self.intentions,filename=self.datafile)
+        #print self.checksum(self.intentions,'full')
         
     def menu_file_saveas(self, menuitem, data=None):
         self.fcd.show()
+        self.fcd_te.set_text('')
         self.fcd_menu = 'FSA'
         response = self.fcd.run()
         print response   
                     
     def fcd_btn_ok(self, menuitem, data=None):
-        print self.fcd_te.get_text()
-        self.datafile = self.fcd_te.get_text()
-        #TODO: Validation
+        ti = self.fcd_te.get_text()
+        print ti
         
+        if ti == '':
+            print "ERROR: Nothing entered as filename"
+            return ''
+
+        if self.fcd_menu == 'FO':
+            self.datafile = self.fcd.get_current_folder() + '/' + ti        
+                
+        #Add extension for new files
+        if ti[-5:] != ".json":
+            ti = ti + ".json"
+            
         if self.fcd_menu == 'FN':
-            self.datafile = self.fcd.get_current_folder() + '/' + self.fcd_te.get_text()
+            self.datafile = self.fcd.get_current_folder() + '/' + ti
             print "creating new file " + self.datafile
             self.write_to_file(items=[],filename=self.datafile)
 
         if self.fcd_menu == 'FSA':
-            self.datafile = self.fcd.get_current_folder() + '/' + self.fcd_te.get_text()
+            self.datafile = self.fcd.get_current_folder() + '/' + ti
             print "creating new file " + self.datafile
             self.write_to_file(items=self.intentions,filename=self.datafile)
-                            
+
+        self.update_title(self.datafile.split("/")[-1])
+                       
+        print "pwf: " + self.fcd.get_current_folder()     
         self.intentions = self.read_from_file(self.datafile)
         self.populate_lbs()
         self.fcd.hide()
-        return self.fcd_te.get_text()
+        return ti
     
     def fcd_btn_cancel(self, menuitem, data=None):
         self.fcd.hide()
         print "fcd quit"
                    
     def fcd_fa(self, menuitem, data=None):
-        self.fcd_te.set_text(self.fcd.get_filename())
+        self.fcd_te.set_text(self.fcd.get_filename().split('/')[-1])
+        print "fa: " + self.fcd.get_filename().split('/')[-1]
     
     def row_cb_toggled(self, object, data=None):
         if object.get_active() == True:
@@ -185,7 +210,7 @@ class EM_GUI:
         print object.get_value()
 
         for i in self.intentions:
-            if object.label == i[3]:
+            if object.label == i[5]:
                 i[4] = object.get_value()
 
         self.write_to_file(items=self.intentions,filename=self.datafile)
@@ -224,7 +249,7 @@ class EM_GUI:
         
         for row in self.rows_selected:
             for i in self.intentions:
-                if row == i[3]:
+                if row == i[5]:
                     i[4] = 100.0
         self.write_to_file(items=self.intentions,filename=self.datafile)
         self.populate_lbs()       
@@ -236,7 +261,7 @@ class EM_GUI:
         
         for row in self.rows_selected:
             for i in self.intentions:
-                if row == i[3]:
+                if row == i[5]:
                     self.intentions.remove(i)
                     
         self.rows_selected = []
@@ -253,7 +278,7 @@ class EM_GUI:
             print self.dlg_te_intention.get_text()
             print self.dlg_cb_important.get_active()
             print self.dlg_te_urgent.get_text()
-            new_intention = [str(datetime.date.today()),self.dlg_cb_important.get_active(),int(self.dlg_te_urgent.get_text()),self.dlg_te_intention.get_text(),False]
+            new_intention = [str(datetime.date.today()),self.dlg_cb_important.get_active(),int(self.dlg_te_urgent.get_text()),self.dlg_te_intention.get_text(),0.0,int(uuid.uuid4())]
             self.intentions.append(new_intention)
             self.write_to_file(items=self.intentions,filename=self.datafile)
             self.populate_lbs()
@@ -276,6 +301,13 @@ class EM_GUI:
                 json.dump(items, outfile)
         except IOError:
             print "Error: Output file error"
+    
+#     def checksum(self,i,t):
+#         if t == 'full':
+#             return sum([sum(a) for a in i])
+#         if t == 'rows':
+#             return sum([int(a[5]) for a in i])
+             
                 
 class ListBoxRowWithData(Gtk.ListBoxRow):
     def __init__(self, data):
