@@ -15,6 +15,8 @@ from settings import *
 
 class EM_GUI:
 
+
+        
     def __init__(self):
         self.gladefile = "em_gui.glade" 
         self.glade = Gtk.Builder()
@@ -31,6 +33,7 @@ class EM_GUI:
             i[3] = (str) Name
             i[4] = (float) Completed Percentage
             i[5] = (uuid.uuid) UUID
+            i[6] = (datetime) Date Due
         '''
         
         self.rows_selected = []
@@ -46,19 +49,29 @@ class EM_GUI:
         self.lb_q4 = self.glade.get_object("lb_q4")
         
         self.mi_vct = self.glade.get_object("mi_view_completed")
+        if VIEWCOMPLETED == True:
+            self.mi_vct.set_active(True)
+        elif VIEWCOMPLETED == False:
+            self.mi_vct.set_active(False)
+            
         self.mi_alpha_order = self.glade.get_object("mi_alpha_order")
+        if ALPHAORDER == True:
+            self.mi_alpha_order.set_active(True)
+        elif ALPHAORDER == False:
+            self.mi_alpha_order.set_active(False)
                 
         self.dlg_add_item = self.glade.get_object("dlg_add_item")
         self.dlg_te_intention = self.glade.get_object("dlg_te_intention")        
         self.dlg_cb_important = self.glade.get_object("dlg_cb_important") 
         self.dlg_te_urgent = self.glade.get_object("dlg_te_urgent") 
+        self.dlg_cal = self.glade.get_object("dlg_cal")
         self.fcd = self.glade.get_object("fcd") 
         self.fcd_te = self.glade.get_object("fcd_te")
         
         #Sorter function for the rows
         def row_sort(row_1, row_2, data, notify_destroy):
             if self.mi_alpha_order.get_active() == False:
-                return row_1.important < row_2.important
+                return row_1.urgency < row_2.urgency
             else:
                 return row_1.label > row_2.label
         
@@ -82,7 +95,17 @@ class EM_GUI:
             #New row, segmented into 2 main vboxes, plus spacer vboxes
             row = Gtk.ListBoxRow()
             row.label = i[5]
-            row.important = i[2]
+            
+
+            if len(i) >= 7:
+                #Keep backwards compatibility for intentions with no due date
+                t_rem = datetime.date(int(i[6][0:4]),int(i[6][5:7]),int(i[6][8:10])) - datetime.date.today()
+                t_elapsed =  datetime.date.today() - datetime.date(int(i[0][0:4]),int(i[0][5:7]),int(i[0][8:10]))
+
+                #Proxy urgency by scaling the remaining time by the original urgency
+                row.urgency = i[2] + int((MAXURGENCY - i[2])*(1 - t_rem.days/t_elapsed.days))
+            else:
+                row.urgency = i[2]
             
             vbox = Gtk.VBox()
             hbox = Gtk.HBox()
@@ -111,7 +134,7 @@ class EM_GUI:
             hb2.pack_start(spb,False,False,1)
             hb2.pack_start(pb,True,True,10)
             
-            lb = Gtk.Label(label=str(i[2]) + "     " + i[3], xalign=0.0)
+            lb = Gtk.Label(label=str(row.urgency) + "     " + i[3], xalign=0.0)
             hbox.pack_start(cb,False,False,5)
             hbox.pack_start(lb,False,False,5)
             
@@ -124,13 +147,13 @@ class EM_GUI:
             row.add(vbspace)
             
             #Put row in appropriate listbox based on importance and urgency
-            if i[2] >= 5 and i[1] == True:
+            if row.urgency >= 5 and i[1] == True:
                 self.lb_q1.add(row)
-            if i[2] < 5 and i[1] == True:
+            if row.urgency < 5 and i[1] == True:
                 self.lb_q2.add(row)
-            if i[2] >= 5 and i[1] == False:
+            if row.urgency >= 5 and i[1] == False:
                 self.lb_q3.add(row)
-            if i[2] < 5 and i[1] == False:
+            if row.urgency < 5 and i[1] == False:
                 self.lb_q4.add(row)
         self.glade.get_object("window_main").show_all()
     
@@ -255,7 +278,9 @@ class EM_GUI:
 
         else:
             #New intention
-            new_intention = [str(datetime.date.today()),self.dlg_cb_important.get_active(),int(self.dlg_te_urgent.get_text()),self.dlg_te_intention.get_text(),0.0,int(uuid.uuid4())]
+            (year, month, day) = self.dlg_cal.get_date()
+            date = datetime.date(year, month + 1, day).strftime('%Y-%m-%d') # gtk.Calendar's month starts from zero
+            new_intention = [str(datetime.date.today()),self.dlg_cb_important.get_active(),int(self.dlg_te_urgent.get_text()),self.dlg_te_intention.get_text(),0.0,int(uuid.uuid4()),date]
             self.intentions.append(new_intention)
             self.write_to_file(items=self.intentions,filename=self.datafile)
             self.populate_lbs()
