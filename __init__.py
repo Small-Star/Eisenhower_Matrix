@@ -95,7 +95,6 @@ class EM_GUI:
             #New row, segmented into 2 main vboxes, plus spacer vboxes
             row = Gtk.ListBoxRow()
             row.label = i[5]
-            
 
             if len(i) >= 7:
                 #Keep backwards compatibility for intentions with no due date
@@ -103,7 +102,7 @@ class EM_GUI:
                 t_elapsed =  datetime.date.today() - datetime.date(int(i[0][0:4]),int(i[0][5:7]),int(i[0][8:10]))
 
                 #Proxy urgency by scaling the remaining time by the original urgency
-                row.urgency = i[2] + int((MAXURGENCY - i[2])*(1 - t_rem.days/t_elapsed.days))
+                row.urgency = i[2] + int((MAXURGENCY - i[2])*(1 - t_rem.days/(t_elapsed.days + t_rem.days)))
             else:
                 row.urgency = i[2]
             
