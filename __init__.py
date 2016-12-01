@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import pygtk
+#from gtk._gtk import STATE_NORMAL
 #print pygtk._get_available_versions()
 from gi.repository import Gtk
 
@@ -34,6 +35,7 @@ class EM_GUI:
             i[4] = (float) Completed Percentage
             i[5] = (uuid.uuid) UUID
             i[6] = (datetime) Date Due
+            i[7] = (list of str) tags
         '''
         
         self.rows_selected = []
@@ -47,6 +49,8 @@ class EM_GUI:
         self.lb_q2 = self.glade.get_object("lb_q2")
         self.lb_q3 = self.glade.get_object("lb_q3")
         self.lb_q4 = self.glade.get_object("lb_q4")
+        #self.color = Gtk.DrawingArea().get_colormap().alloc_color(0, 65535, 0)
+        #self.lb_q4.set_current_color(self.color)
         
         self.mi_vct = self.glade.get_object("mi_view_completed")
         if VIEWCOMPLETED == True:
@@ -95,14 +99,14 @@ class EM_GUI:
             #New row, segmented into 2 main vboxes, plus spacer vboxes
             row = Gtk.ListBoxRow()
             row.label = i[5]
-
+        
             if len(i) >= 7:
                 #Keep backwards compatibility for intentions with no due date
                 t_rem = datetime.date(int(i[6][0:4]),int(i[6][5:7]),int(i[6][8:10])) - datetime.date.today()
                 t_elapsed =  datetime.date.today() - datetime.date(int(i[0][0:4]),int(i[0][5:7]),int(i[0][8:10]))
 
                 #Proxy urgency by scaling the remaining time by the original urgency
-                row.urgency = i[2] + int((MAXURGENCY - i[2])*(1 - t_rem.days/(t_elapsed.days + t_rem.days)))
+                row.urgency = min(MAXURGENCY, i[2] + int((MAXURGENCY - i[2])*(1 - t_rem.days/(t_elapsed.days + t_rem.days))))
             else:
                 row.urgency = i[2]
             
@@ -134,6 +138,7 @@ class EM_GUI:
             hb2.pack_start(pb,True,True,10)
             
             lb = Gtk.Label(label=str(row.urgency) + "     " + i[3], xalign=0.0)
+
             hbox.pack_start(cb,False,False,5)
             hbox.pack_start(lb,False,False,5)
             
